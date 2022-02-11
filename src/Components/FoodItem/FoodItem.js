@@ -2,10 +2,12 @@ import React, { useEffect, useState } from 'react'
 import { Button, Container, Form, Table } from 'react-bootstrap';
 import { db } from '../FirebaseConfig/firebase-config';
 import {addDoc, collection, getDocs, updateDoc, doc, deleteDoc} from 'firebase/firestore';
+import { database } from '../FirebaseConfig/firebase-config';
+import { getDatabase, push, ref, set , onValue, remove, update } from "firebase/database";
 
 const FoodItem = () => {
 
-    const foodCollectionRef = collection(db, "FoodItem");
+    //const foodCollectionRef = collection(db, "FoodItem");
     const [food, setFood] = useState([]);
     const [formData, setFormData] = useState({
         name:'',
@@ -24,15 +26,18 @@ const FoodItem = () => {
     }
 
     const addFood = async () => {
-        await addDoc(foodCollectionRef, {
-            name: formData.name,
-            price: formData.price
-        });
+        const rdb = getDatabase();
+        await push(ref(rdb, 'FoodItem/'), formData);
+        // await addDoc(foodCollectionRef, {
+        //     name: formData.name,
+        //     price: formData.price
+        // });
     }
 
     const handleClick = (e) => {
         e.preventDefault();
         addFood();
+        setFormData({});
     }
 
     const handleUpdate = (singleFood) => {
@@ -43,8 +48,11 @@ const FoodItem = () => {
     const handleDelete = async (id) => {
         const proceed = window.confirm("Are you sure you want to Delete?");
         if (proceed) {
-        const foodDoc = doc(db, "FoodItem", id);
-        await deleteDoc(foodDoc);
+        console.log(id);
+        const rdb = getDatabase();
+        await remove(ref(rdb, 'FoodItem/' + id));
+        // const foodDoc = doc(db, "FoodItem", id);
+        // await deleteDoc(foodDoc);
         } else {
         }
         
@@ -52,23 +60,37 @@ const FoodItem = () => {
 
     const handleClickUpdate = async (e) => {
         e.preventDefault();
-        const foodDoc = doc(db, "FoodItem", updateFood.id)
         const newFields = {
             name : formData.name,
             price: formData.price
         }
-        await updateDoc(foodDoc , newFields);
+        const rdb = getDatabase();
+        await update(ref(rdb, 'FoodItem/' + updateFood.id),newFields);
+
+        // const foodDoc = doc(db, "FoodItem", updateFood.id)
+        // await updateDoc(foodDoc , newFields);
     }
 
     useEffect(()=> {
         const getFood = async () => {
-            const data = await getDocs(foodCollectionRef);
-            setFood(data.docs.map((doc)=>({...doc.data(), id: doc.id})));
+            const rdb = getDatabase();
+            await onValue(ref(rdb, 'FoodItem/'), (snapshot) => {
+                console.log(snapshot.val());
+                const data = snapshot.val();
+                const dataList = [];
+                for(let id in data){
+                    dataList.push({id: id, name:data[id].name, price:data[id].price});
+                }
+                setFood(dataList);
+                console.log(dataList);
+            })
+            // const data = await getDocs(foodCollectionRef);
+            // setFood(data.docs.map((doc)=>({...doc.data(), id: doc.id})));
             //console.log(data);
         }
 
         getFood()
-    }, [addFood])
+    }, [])
 
   return (
       <Container>
